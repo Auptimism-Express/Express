@@ -3,9 +3,9 @@ import base64
 import io
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
-from flask import Flask,flash,render_template, redirect, request, url_for
+from flask import Flask, flash, render_template, redirect, request, url_for
 import numpy as np
-from collections import OrderedDict,Counter
+from collections import OrderedDict, Counter
 import numpy as np
 from torch.autograd import Variable
 from PIL import Image
@@ -25,33 +25,63 @@ plt.rcParams["figure.figsize"] = [7.50, 3.50]
 plt.rcParams["figure.autolayout"] = True
 app = Flask('Test')
 
+def get_CV2_RGB(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-
-
+def get_CV2_GRAY(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 def get_img(img_path):
     img = cv2.imread(img_path)
 
-    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img = get_CV2_RGB(img)
     plt.imshow(img)
     return img
+def contour(img):
+    gray=get_CV2_GRAY(img)
+    edged = cv2.Canny(gray, 30, 200)
+    print(edged)
+    # Finding Contours
+    # Use a copy of the image e.g. edged.copy()
+    # since findContours alters the image
+    contours, hierarchy = cv2.findContours(edged,
+        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    # cv2.imshow(edged)
+
+    cv2.imshow('edge',edged)
+
+    print("Number of Contours found = " + str(len(contours)))
+
+    # Draw all contours
+    # -1 signifies drawing all contours
+    cv2.drawContours(img, contours, -1, (0, 255, 0), 3)
+
+    cv2.imshow('Contours', img)
+    cv2.destroyAllWindows()
+
 
 def RGB2HEX(color):
     return "#{:02x}{:02x}{:02x}".format(int(color[0]), int(color[1]), int(color[2]))
 
+
 def get_colours(img_path, no_of_colours, show_chart):
     img = get_img(img_path)
-    #Reduce image size to reduce the execution time
-    mod_img = cv2.resize(img, (600, 400), interpolation = cv2.INTER_AREA)
-    #Reduce the input to two dimensions for KMeans
+    # Reduce image size to reduce the execution time
+    mod_img = cv2.resize(img, (600, 400), interpolation=cv2.INTER_AREA)
+    # Reduce the input to two dimensions for KMeans
     mod_img = mod_img.reshape(mod_img.shape[0]*mod_img.shape[1], 3)
 
-    #Define the clusters
-    clf = KMeans(n_clusters = no_of_colours)
+    # Define the clusters
+    clf = KMeans(n_clusters=no_of_colours)
     labels = clf.fit_predict(mod_img)
 
     counts = Counter(labels)
     counts = dict(sorted(counts.items()))
+    summ=sum(counts.values())
+    per=[]
+    for i in counts.values():
+        per.append(str(round(((i/summ)*100),2))+"%")
 
     center_colours = clf.cluster_centers_
     ordered_colours = [center_colours[i] for i in counts.keys()]
@@ -59,12 +89,8 @@ def get_colours(img_path, no_of_colours, show_chart):
     rgb_colours = [ordered_colours[i] for i in counts.keys()]
 
     if (show_chart):
-        fig=plt.figure(figsize = (6, 4))
-        plt.pie(counts.values(), labels = hex_colours, colors = hex_colours)
-        print("------------------")
-
-        print(fig)
-        print("------------------")
+        fig = plt.figure(figsize=(6, 4))
+        plt.pie(counts.values(), labels=per, colors=hex_colours)
 
         plt.show()
         buf = io.BytesIO()
@@ -74,9 +100,6 @@ def get_colours(img_path, no_of_colours, show_chart):
         return data
     else:
         return rgb_colours
-
-
-
 
 
 def process_image(image):
@@ -140,7 +163,7 @@ def predict(img, model, topk=5):
     idx_to_class = {v: k for k, v in class_to_idx.items()}
     # Implement the code to predict the class from an image file
 
-    # image = torch.FloatTensor([process_image(Image.open(image_path))]) 
+    # image = torch.FloatTensor([process_image(Image.open(image_path))])
 
     image = torch.FloatTensor([process_image(Image.open(img))])
     model.eval()
@@ -171,9 +194,6 @@ def view_classify(img):
     img = Image.open(img)
 
     fig, (ax1, ax2) = plt.subplots(figsize=(6, 6),  ncols=1, nrows=2)
-    print("++++++++++")
-    print(fig)
-    print("++++++++++")
 
     ct_name = img_filename
 
@@ -193,6 +213,7 @@ def view_classify(img):
 
     data = base64.b64encode(buf.getbuffer()).decode("ascii")
     return data
+
 
 def plot_png():
     fig = Figure()
@@ -214,13 +235,17 @@ def index():
 app.config["UPLOAD_FOLDER"] = "static/Images"
 #app.config["ALLOWED_IMAGE_EXTENSIONS"] = ["PNG","JPG","JPEG","JFIF"]
 
+
 @app.route('/display/<filename>')
 def display_image(filename):
     return redirect(url_for('static', filename="/Images" + filename), code=301)
 
+
 def allowed_file(filename):
     return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in app.config["ALLOWED_IMAGE_EXTENSIONS"]
+           filename.rsplit('.', 1)[1].lower(
+           ) in app.config["ALLOWED_IMAGE_EXTENSIONS"]
+
 
 @app.route('/home', methods=["GET", "POST"])
 def upload_image():
@@ -232,17 +257,14 @@ def upload_image():
             print("Image must have a file name")
             return redirect(request.url)
 
-
         filename = secure_filename(image.filename)
 
         basedir = os.path.abspath(os.path.dirname(__file__))
-        image.save(os.path.join(basedir,app.config["UPLOAD_FOLDER"],filename))
-        img_path=os.path.join(basedir,app.config["UPLOAD_FOLDER"],filename)
+        image.save(os.path.join(
+            basedir, app.config["UPLOAD_FOLDER"], filename))
+        img_path = os.path.join(basedir, app.config["UPLOAD_FOLDER"], filename)
+
+    return render_template('output.html', text='hello Shreyas', img_src=f"data:image/png;base64,{view_classify(image)}", pie_chart=f"data:image/png;base64,{get_colours(img_path, 5, True)}")
 
 
-
-    return render_template('output.html', text='hello Shreyas', img_src=f"data:image/png;base64,{view_classify(image)}",pie_chart=f"data:image/png;base64,{get_colours(img_path, 5, True)}")
-
-
-
-app.run(debug=True,port=2000)
+app.run(debug=True, port=2000)

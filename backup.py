@@ -1,26 +1,74 @@
 from werkzeug.utils import secure_filename
 import base64
 import io
-import os
-from flask import Response, render_template, redirect, request, url_for
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from matplotlib.figure import Figure
-from flask import Flask
+from flask import Flask, flash, render_template, redirect, request, url_for
 import numpy as np
-from collections import OrderedDict
+from collections import OrderedDict, Counter
 import numpy as np
 from torch.autograd import Variable
 from PIL import Image
 import matplotlib.pyplot as plt
 import torch
-from torch import nn, optim
-from torchvision import datasets, transforms, models
+from torch import nn
+from torchvision import models
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+import numpy as np
+import cv2
+import os
 
 
 plt.switch_backend('Agg')
 plt.rcParams["figure.figsize"] = [7.50, 3.50]
 plt.rcParams["figure.autolayout"] = True
 app = Flask('Test')
+
+
+def get_img(img_path):
+    img = cv2.imread(img_path)
+
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    plt.imshow(img)
+    return img
+
+
+def RGB2HEX(color):
+    return "#{:02x}{:02x}{:02x}".format(int(color[0]), int(color[1]), int(color[2]))
+
+
+def get_colours(img_path, no_of_colours, show_chart):
+    img = get_img(img_path)
+    # Reduce image size to reduce the execution time
+    mod_img = cv2.resize(img, (600, 400), interpolation=cv2.INTER_AREA)
+    # Reduce the input to two dimensions for KMeans
+    mod_img = mod_img.reshape(mod_img.shape[0]*mod_img.shape[1], 3)
+
+    # Define the clusters
+    clf = KMeans(n_clusters=no_of_colours)
+    labels = clf.fit_predict(mod_img)
+
+    counts = Counter(labels)
+    counts = dict(sorted(counts.items()))
+
+    center_colours = clf.cluster_centers_
+    ordered_colours = [center_colours[i] for i in counts.keys()]
+    hex_colours = [RGB2HEX(ordered_colours[i]) for i in counts.keys()]
+    rgb_colours = [ordered_colours[i] for i in counts.keys()]
+
+    if (show_chart):
+        fig = plt.figure(figsize=(6, 4))
+        plt.pie(counts.values(), labels=hex_colours, colors=hex_colours)
+
+        plt.show()
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png")
+
+        data = base64.b64encode(buf.getbuffer()).decode("ascii")
+        return data
+    else:
+        return rgb_colours
 
 
 def process_image(image):
@@ -84,7 +132,7 @@ def predict(img, model, topk=5):
     idx_to_class = {v: k for k, v in class_to_idx.items()}
     # Implement the code to predict the class from an image file
 
-    # image = torch.FloatTensor([process_image(Image.open(image_path))]) 
+    # image = torch.FloatTensor([process_image(Image.open(image_path))])
 
     image = torch.FloatTensor([process_image(Image.open(img))])
     model.eval()
@@ -105,6 +153,7 @@ def view_classify(img):
     # class_names=['Happiness', 'Anxiety and Depression', 'Anger and Violence']
     # img = './static/img.jpg'
     loaded_model, class_to_idx = load_checkpoint('./emotions80_checkpoint.pth')
+    # get_colours(img, 5, True)
 
     probabilities, classes = predict(img, loaded_model)
 
@@ -113,7 +162,8 @@ def view_classify(img):
     img_filename = 'Prediction'
     img = Image.open(img)
 
-    fig, (ax1, ax2) = plt.subplots(figsize=(3, 3),  ncols=1, nrows=2)
+    fig, (ax1, ax2) = plt.subplots(figsize=(6, 6),  ncols=1, nrows=2)
+
     ct_name = img_filename
 
     ax1.set_title(ct_name)
@@ -133,6 +183,7 @@ def view_classify(img):
     data = base64.b64encode(buf.getbuffer()).decode("ascii")
     return data
 
+
 def plot_png():
     fig = Figure()
     axis = fig.add_subplot(1, 1, 1)
@@ -150,25 +201,39 @@ def index():
     return render_template('index.html')
 
 
-app.config["IMAGE_UPLOADS"] = "static/Images"
-#app.config["ALLOWED_IMAGE_EXTENSIONS"] = ["PNG","JPG","JPEG"]
+app.config["UPLOAD_FOLDER"] = "static/Images"
+#app.config["ALLOWED_IMAGE_EXTENSIONS"] = ["PNG","JPG","JPEG","JFIF"]
+
 
 @app.route('/display/<filename>')
 def display_image(filename):
     return redirect(url_for('static', filename="/Images" + filename), code=301)
 
 
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower(
+           ) in app.config["ALLOWED_IMAGE_EXTENSIONS"]
+
+
 @app.route('/home', methods=["GET", "POST"])
 def upload_image():
     if request.method == "POST":
+
         image = request.files['file']
 
         if image.filename == '':
             print("Image must have a file name")
             return redirect(request.url)
 
-    return render_template('output.html', text='hello Shreyas', img_src=f"data:image/png;base64,{view_classify(image)}")
+        filename = secure_filename(image.filename)
+
+        basedir = os.path.abspath(os.path.dirname(__file__))
+        image.save(os.path.join(
+            basedir, app.config["UPLOAD_FOLDER"], filename))
+        img_path = os.path.join(basedir, app.config["UPLOAD_FOLDER"], filename)
+
+    return render_template('output.html', text='hello Shreyas', img_src=f"data:image/png;base64,{view_classify(image)}", pie_chart=f"data:image/png;base64,{get_colours(img_path, 5, True)}")
 
 
-
-app.run(debug=True,port=2000)
+app.run(debug=True, port=2000)

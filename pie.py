@@ -8,7 +8,6 @@ import os
 
 def get_img(img_path):
     img = cv2.imread(img_path)
-    print(img)
 
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     plt.imshow(img)
@@ -30,15 +29,18 @@ def get_colours(img_path, no_of_colours, show_chart):
 
     counts = Counter(labels)
     counts = dict(sorted(counts.items()))
+    summ=sum(counts.values())
+    per=[]
+    for i in counts.values():
+        per.append(str(round(((i/summ)*100),2))+"%")
 
     center_colours = clf.cluster_centers_
     ordered_colours = [center_colours[i] for i in counts.keys()]
     hex_colours = [RGB2HEX(ordered_colours[i]) for i in counts.keys()]
     rgb_colours = [ordered_colours[i] for i in counts.keys()]
-
     if (show_chart):
         plt.figure(figsize = (8, 6))
-        plt.pie(counts.values(), labels = hex_colours, colors = hex_colours)
+        plt.pie(counts.values(), labels = per, colors = hex_colours)
         plt.show()
         return
     else:
