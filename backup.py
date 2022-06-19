@@ -77,14 +77,16 @@ def load_checkpoint(filepath):
     return model, checkpoint['class_to_idx']
 
 
-def predict(image_path, model, topk=5):
+def predict(img, model, topk=5):
     ''' Predict the class (or classes) of an image using a trained deep learning model.
     '''
     loaded_model, class_to_idx = load_checkpoint('./emotions80_checkpoint.pth')
     idx_to_class = {v: k for k, v in class_to_idx.items()}
     # Implement the code to predict the class from an image file
 
-    image = torch.FloatTensor([process_image(Image.open(image_path))])
+    # image = torch.FloatTensor([process_image(Image.open(image_path))]) 
+
+    image = torch.FloatTensor([process_image(Image.open(img))])
     model.eval()
     output = model.forward(Variable(image))
     print(output)
@@ -99,7 +101,6 @@ def predict(image_path, model, topk=5):
     return top_probability, top_class
 
 
-# @app.route('/test')
 def view_classify(img):
     # class_names=['Happiness', 'Anxiety and Depression', 'Anger and Violence']
     # img = './static/img.jpg'
@@ -132,25 +133,6 @@ def view_classify(img):
     data = base64.b64encode(buf.getbuffer()).decode("ascii")
     return data
 
-    # print("hi..................!!!!!!!!!")
-    # # plt.figure(figsize=(5,16))
-
-    # return render_template('index.html', text='hello Shreyas',  img_src=plt.imshow(img))
-
-    # fig = Figure()
-    # axis = fig.add_subplot(1, 1, 1)
-    # xs = np.random.rand(100)
-    # ys = np.random.rand(100)
-    # axis.plot(xs, ys)
-    # output = io.BytesIO()
-    # FigureCanvas(fig).print_png(output)
-    # plt.show()
-
-    # return Response(output.getvalue(), mimetype='image/png')
-
-
-# @app.route('/print-plot')
-
 def plot_png():
     fig = Figure()
     axis = fig.add_subplot(1, 1, 1)
@@ -160,26 +142,11 @@ def plot_png():
     output = io.BytesIO()
     FigureCanvas(fig).print_png(output)
 
-#    return Response(output.getvalue(), mimetype='image/png')
-
 
 @app.route('/', methods=["GET", "POST"])
 @app.route('/index', methods=["GET", "POST"])
 def index():
-
-    # if request.method == "POST":
-    #     image = request.files['file']
-
-    #     print("-----------------")
-    #     print(type(image))
-    #     print("-----------------")
-
-    #     if image.filename == '':
-    #         print("Image must have a file name")
-    #         return redirect(request.url)
-
     # return render_template('index.html', text='hello Shreyas', img_src=f"data:image/png;base64,{view_classify()}")
-
     return render_template('index.html')
 
 
@@ -196,32 +163,11 @@ def upload_image():
     if request.method == "POST":
         image = request.files['file']
 
-        print("-----------------")
-        print(type(image))
-        print("-----------------")
-
         if image.filename == '':
             print("Image must have a file name")
             return redirect(request.url)
 
-
-        filename = secure_filename(image.filename)
-
-        img = Image.open(image)
-        img.save(filename)
-
-        # basedir = os.path.abspath(os.path.dirname(__file__))
-        # image.save(os.path.join(
-        #     basedir, app.config["IMAGE_UPLOADS"], filename))
-        # print(filename)
-        # return render_template("index.html", filename=filename)
-
-    # return render_template('index.html')
-    print(' ===================== ********************* ============================')
-    print(img)
-
-    print(' ===================== ********************* ============================')
-    return render_template('output.html', text='hello Shreyas', img_src=f"data:image/png;base64,{view_classify(img)}")
+    return render_template('output.html', text='hello Shreyas', img_src=f"data:image/png;base64,{view_classify(image)}")
 
 
 
