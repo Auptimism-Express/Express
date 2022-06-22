@@ -38,28 +38,19 @@ def get_img(img_path):
     plt.imshow(img)
     return img
 def contour(img):
-    gray=get_CV2_GRAY(img)
-    edged = cv2.Canny(gray, 30, 200)
-    print(edged)
-    # Finding Contours
-    # Use a copy of the image e.g. edged.copy()
-    # since findContours alters the image
-    contours, hierarchy = cv2.findContours(edged,
-        cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    fig = plt.figure(figsize=(6, 4))
 
-    # cv2.imshow(edged)
+    img = cv2.imread(img,0)
+    edges = cv2.Canny(img,100,200)
+    plt.subplot(121),plt.imshow(img,cmap = 'gray')
+    plt.title('Original Image'), plt.xticks([]), plt.yticks([])
+    plt.subplot(122),plt.imshow(edges,cmap = 'gray')
+    plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
 
-    cv2.imshow('edge',edged)
-
-    print("Number of Contours found = " + str(len(contours)))
-
-    # Draw all contours
-    # -1 signifies drawing all contours
-    cv2.drawContours(img, contours, -1, (0, 255, 0), 3)
-
-    cv2.imshow('Contours', img)
-    cv2.destroyAllWindows()
-
+    data = base64.b64encode(buf.getbuffer()).decode("ascii")
+    return data
 
 def RGB2HEX(color):
     return "#{:02x}{:02x}{:02x}".format(int(color[0]), int(color[1]), int(color[2]))
@@ -89,10 +80,9 @@ def get_colours(img_path, no_of_colours, show_chart):
     rgb_colours = [ordered_colours[i] for i in counts.keys()]
 
     if (show_chart):
-        fig = plt.figure(figsize=(6, 4))
+        fig = plt.figure(figsize=(6, 6))
         plt.pie(counts.values(), labels=per, colors=hex_colours)
 
-        plt.show()
         buf = io.BytesIO()
         fig.savefig(buf, format="png")
 
@@ -264,7 +254,7 @@ def upload_image():
             basedir, app.config["UPLOAD_FOLDER"], filename))
         img_path = os.path.join(basedir, app.config["UPLOAD_FOLDER"], filename)
 
-    return render_template('output.html', text='hello Shreyas', img_src=f"data:image/png;base64,{view_classify(image)}", pie_chart=f"data:image/png;base64,{get_colours(img_path, 5, True)}")
+    return render_template('output.html', text='Analysis of the Image', img_src=f"data:image/png;base64,{view_classify(image)}", pie_chart=f"data:image/png;base64,{get_colours(img_path, 5, True)}",contour=f"data:image/png;base64,{contour(img_path)}")
 
 
 app.run(debug=True, port=2000)
