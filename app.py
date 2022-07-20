@@ -38,7 +38,7 @@ def get_img(img_path):
     plt.imshow(img)
     return img
 def contour(img):
-    fig = plt.figure(figsize=(6, 4))
+    fig = plt.figure(figsize=(8, 6))
 
     img = cv2.imread(img,0)
     edges = cv2.Canny(img,100,200)
@@ -126,14 +126,12 @@ def load_checkpoint(filepath):
     checkpoint = torch.load(filepath, map_location='cpu')
     model = models.resnet152()
 
-    # our input_size matches the in_features of pretrained model
     input_size = 2048
     output_size = 5
 
     classifier = nn.Sequential(OrderedDict([
         ('fc1', nn.Linear(2048, 1024)),
         ('relu', nn.ReLU()),
-        #('dropout1', nn.Dropout(p=0.2)),
         ('fc2', nn.Linear(1024, 3)),
         ('output', nn.LogSoftmax(dim=1))
     ]))
